@@ -4,6 +4,7 @@ use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::sync::Arc;
 use async_recursion::async_recursion;
 use sqlx::{PgPool, postgres::PgRow, Row};
@@ -1096,13 +1097,14 @@ impl JsonLdSchemaIngester {
 // Example usage
 #[tokio::main]
 async fn main() -> Result<()> {
+    dotenv::dotenv()?;
 
-    let connection_string = "postgres://trlowner:trlowner@localhost:5432/trldb?search_path=public";
-    let schema_jsonld = "/Users/dineshshahane/Projects/startup/trl_qe/sample-data/ontologies/schemaorg-current-https.jsonld";
+    let connection_string = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let schema_jsonld = env::var("SCHEMA_JSONLD").expect("SCHEMA_JSONLD must be set");
     let table_name = "test_rdfs_classes";
 
     // Initialize ingester with caching
-    let mut ingester = JsonLdSchemaIngester::new(connection_string, true, 3600).await?;
+    let mut ingester = JsonLdSchemaIngester::new(connection_string.as_str(), true, 3600).await?;
 
     // Drop table
     ingester.drop_schema_table(table_name).await?;
@@ -1111,7 +1113,7 @@ async fn main() -> Result<()> {
     ingester.create_schema_table(table_name).await;
 
     ingester
-        .ingest_file(schema_jsonld, table_name, false)
+        .ingest_file(schema_jsonld.as_str(), table_name, false)
         .await?;
 
     let person_properties = ingester
@@ -1130,7 +1132,7 @@ async fn main() -> Result<()> {
     println!("JSON-LD CONTEXT/PREFIX DOCUMENT");
     println!("=============================================");
 
-    match ingester.get_jsonld_context(schema_jsonld).await {
+    match ingester.get_jsonld_context(schema_jsonld.as_str()).await {
         Ok(context_json) => {
             // Print the resulting JSON structure neatly
             println!("{}", serde_json::to_string_pretty(&context_json)?);
